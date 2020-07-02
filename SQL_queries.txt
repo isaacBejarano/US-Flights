@@ -11,7 +11,7 @@ SELECT
    AVG(ArrDelay) AS prom_arribades,
    AVG(DepDelay) AS prom_sortides
 FROM flights
-GROUP BY Origin ASC;v
+GROUP BY Origin ASC;
 
 
 3.Retard promig d’arribada dels vols, per mesos, anys i segons l’aeroport origen.
@@ -22,9 +22,10 @@ SELECT
    Origin,
    colYear,
    colMonth,
-   ArrDelay AS prom_arribades
+   AVG(ArrDelay) AS prom_arribades
 FROM
    flights
+GROUP BY Origin, colYear, colMonth
 ORDER BY Origin ASC, colYear ASC, colMonth ASC;
 
 
@@ -32,53 +33,78 @@ ORDER BY Origin ASC, colYear ASC, colMonth ASC;
 (mateixa consulta que abans i amb el mateix ordre).
 Però a més, ara volen que en comptes del codi de l’aeroport es mostri el nom de la ciutat.
 
+--  1. Si consultem camps iguals a diferents columnes,
+-- hem d’identificar la taula d’on ve el camp.
+-- 2. és recomenable fer el JOIN.
+
 SELECT
    AIR.City,
-   colYear,
-   colMonth,
-   ArrDelay AS prom_arribades
+   FL.colYear,
+   FL.colMonth,
+   AVG(FL.ArrDelay) AS prom_arribades
 FROM
-   flights AS FL,
-   usairports AS AIR
-WHERE FL.Origin = AIR.IATA
-ORDER BY AIR.City ASC, FL.colYear ASC, FL.colMonth ASC;
+   flights AS FL
+LEFT JOIN usairports as AIR
+ON FL.Origin = AIR.IATA
+GROUP BY City, colYear, colMonth
+ORDER BY City, colYear, colMonth;
 
 
 5. Les companyies amb més vols cancelats, per mesos i any.
 A més, han d’estar ordenades de forma que les companyies amb més cancel·lacions
 apareguin les primeres.
 
+-- Ens estalviem de mostrar el resultats == 0
+-- Usarem HAVING
+
 SELECT
    UniqueCarrier,
    colYear,
    colMonth,
-   SUM(Cancelled) AS toal_cancelled
+   SUM(Cancelled) AS total_cancelled
 FROM
    flights
-GROUP BY UniqueCarrier 
-ORDER BY toal_cancelled DESC, colYear ASC, colMonth ASC;
+GROUP BY UniqueCarrier, colYear, colMonth
+HAVING total_cancelled > 0 
+ORDER BY total_cancelled DESC, colYear ASC, colMonth ASC;
 
 
 6. L’identificador dels 10 avions que més distància han recorregut fent vols
 
+-- NA vs NULL: 
+-- 1. NULL represents the null object,
+-- it can be the product of importing data with unknown type.
+
+-- 2. NA is a logical constant of length 1,
+-- which contains a missing value indicator.
+-- NA can be freely coerced to any other vector type except raw.
+
+-- For any vector (matrix or array),
+-- NA represents a missing value.  NULL does not.
+
 SELECT
     TailNum,
-    Distance AS totalDistance
+    SUM(Distance) as totalDistance 
 FROM
-   flights
-WHERE TailNum NOT LIKE ""
-ORDER BY Distance DESC
-LIMIT 10;
+    flights 
+WHERE TailNum != "NA" AND TailNum != "#?NOMBRE?"
+GROUP BY TailNum 
+ORDER BY totalDistance DESC 
+Limit 10;
 
 
 7. Companyies amb el seu retard promig només d’aquelles les quals els seus vols arriben al seu destí amb un retràs promig major de 10 minuts.
 
+-- Per evitar errors, el 10 que tingui el mateix format
+-- que les dades registrades (10.0)
+
 SELECT
-   UniqueCarrier,
-   AVG(ArrDelay) AS avgDelay
-FROM flights
+    UniqueCarrier,
+    AVG(ArrDelay) AS avgDelay
+FROM
+    flights
 GROUP BY UniqueCarrier
-   HAVING avgDelay > 10
+HAVING avgDelay > 10.0 -- float
 ORDER BY avgDelay DESC;
 
 
